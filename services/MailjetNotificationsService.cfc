@@ -6,8 +6,7 @@
 component {
 
 	/**
-	 * @emailServiceProviderService.inject emailServiceProviderService
-	 * @emailLoggingService.inject         emailLoggingService
+	 * @emailLoggingService.inject emailLoggingService
 	 *
 	 */
 	public any function init(
@@ -16,160 +15,122 @@ component {
 	) {
 		_setEmailServiceProviderService( arguments.emailServiceProviderService );
 		_setEmailLoggingService( arguments.emailLoggingService );
+		_setupErrorCodes();
 
 		return this;
 	}
 
 // PUBLIC API METHODS
-	public boolean function processNotification( required string messageId, required string messageEvent, struct postData={} ){
-		var loggingService = _getEmailLoggingService();
+	public void function processEvents( required array events ) {
+		for ( var event in events ) {
+			processEvent( event );
+		}
+	}
 
-		switch( arguments.messageEvent ) {
-			case "opened":
-				loggingService.markAsOpened( id=arguments.messageId );
+	public void function processEvent( required struct event ){
+		var loggingService = _getEmailLoggingService();
+		var eventType      = arguments.event.event    ?: "";
+		var messageId      = arguments.event.customID ?: "";
+
+		if ( !messageId.len() ) {
+			return;
+		}
+
+		switch( eventType ) {
+			case "open":
+				loggingService.markAsOpened( id=messageId );
 			break;
-			case "delivered":
-				loggingService.markAsDelivered( id=arguments.messageId );
+			case "sent":
+				loggingService.markAsDelivered( id=messageId );
 			break;
-			case "dropped":
-				loggingService.markAsFailed(
-					  id     = arguments.messageId
-					, reason = arguments.postData.description ?: ""
-					, code   = arguments.postData.code        ?: ""
-				);
+			case "bounce":
+			case "blocked":
+				var hardBounced  = IsBoolean( arguments.event.hard_bounce ?: "" ) && arguments.event.hard_bounce;
+				var errorDetails = _getErrorDetails( arguments.event );
+
+				if ( hardBounced ) {
+					loggingService.markAsFailed(
+						  id     = messageId
+						, reason = errorDetails.description ?: ""
+						, code   = errorDetails.code        ?: ""
+					);
+				} else {
+					loggingService.markAsHardBounced(
+						  id     = messageId
+						, reason = errorDetails.description ?: ""
+						, code   = errorDetails.code  ?: ""
+					);
+				}
 			break;
-			case "bounced":
-				loggingService.markAsHardBounced(
-					  id     = arguments.messageId
-					, reason = arguments.postData.error ?: ""
-					, code   = arguments.postData.code  ?: ""
-				);
+			case "unsub":
+				loggingService.markAsUnsubscribed( id=messageId );
 			break;
-			case "unsubscribed":
-				loggingService.markAsUnsubscribed( id=arguments.messageId );
+			case "spam":
+				loggingService.markAsMarkedAsSpam( id=messageId );
 			break;
-			case "complained":
-				loggingService.markAsMarkedAsSpam( id=arguments.messageId );
-			break;
-			case "clicked":
-				loggingService.recordClick( id=arguments.messageId, link=arguments.postData.url ?: "" );
+			case "click":
+				loggingService.recordClick( id=messageId, link=arguments.event.url ?: "" );
 			break;
 		}
 		return true;
 	}
 
-	public boolean function validatePostHookSignature(
-		  required numeric timestamp
-		, required string  token
-		, required string  signature
-	) {
-		var encryptionKey       = _getApiKey();
-
-		if ( !encryptionKey.len() ) {
-			throw( type="mailjet.api.key.not.configured", message="No API key is configured for the mailjet extension. This prevents the validation of mailjet POST hooks." );
-		}
-
-		var encryptionData      = arguments.timestamp & arguments.token;
-		var calculatedSignature = _hexEncodedSha256( encryptionData, encryptionKey );
-
-		return arguments.signature == calculatedSignature;
-	}
-
-	public string function getPresideMessageIdForNotification( required struct postData ) {
-		var messageId = postData.presideMessageId ?: "";
-
-		if ( Len( Trim( messageId ) ) ) {
-			return messageId;
-		}
-
-		var messageHeaders = parseMessageHeaders( arguments.postData[ "message-headers" ] ?: "" );
-		return messageHeaders[ "X-Message-ID" ] ?: "";
-	}
-
-	public struct function parseMessageHeaders( required string headers ) {
-		var parsed = {};
-		var deserializedHeaders = [];
-		var parseItemValue = function( value ) {
-			if ( IsSimpleValue( value ) ) {
-				return value;
-			}
-			if ( IsArray( value ) && value.len() == 2 ) {
-				return {
-					"#value[1]#" = parseItemValue( value[2] )
-				};
-			}
-
-			return value;
-		}
-
-		try {
-			deserializedHeaders = DeserializeJson( arguments.headers )
-			for( var item in deserializedHeaders ) {
-				parsed[ item[1] ] = parseItemValue( item[ 2 ] );
-			}
-		} catch( any e ) {
-			deserializedHeaders = [];
-		}
-
-		return parsed;
-	}
-
 // PRIVATE HELPERS
-	private string function _getApiKey(){
-		return _getSettings().mailjet_api_key;
+	private struct function _getErrorDetails( required struct event ) {
+		var codes     = _getErrorCodes();
+		var relatedTo = arguments.event.error_related_to ?: "unknown";
+		var error     = arguments.event.error            ?: "unknown";
+
+		return {
+			  code        = "#relatedTo#.#error.reReplace( '\W', '', 'all' )#"
+			, description = codes[ relatedTo ][ error ] ?: "unknown";
+		};
 	}
 
-	private struct function _getSettings(){
-		if ( !request.keyExists( "_mailjetServiceProviderSettings" ) ) {
-			var settings = _getEmailServiceProviderService().getProviderSettings( "mailjet" );
-
-			request._mailjetServiceProviderSettings = {
-				  mailjet_api_key        = settings.mailjet_api_key        ?: ""
-				, mailjet_api_public_key = settings.mailjet_api_public_key ?: ""
-				, mailjet_default_domain = settings.mailjet_default_domain ?: ""
-				, mailjet_test_mode      = settings.mailjet_test_mode      ?: ""
-			};
-		}
-
-		return request._mailjetServiceProviderSettings;
-	}
-
-	public string function _hexEncodedSha256( required string data, required string key ) {
-		var secret = CreateObject( "java", "javax.crypto.spec.SecretKeySpec" ).Init( arguments.key.GetBytes(), "HmacSHA256" );
-		var mac    = createObject( "java", "javax.crypto.Mac" ).getInstance( "HmacSHA256" );
-
-		mac.init( secret );
-
-		return _byteArrayToHex( mac.doFinal( arguments.data.GetBytes() ) );
-
-	}
-
-	public string function _byteArrayToHex( required any byteArray ) {
-		var hexBytes = [];
-		for( var byte in arguments.byteArray ) {
-			var unsignedByte = bitAnd( byte, 255 );
-			var hexChar      = FormatBaseN( unsignedByte, 16 );
-
-			if ( unsignedByte < 16 ) {
-				hexChar = "0" & hexChar;
-			}
-			hexBytes.append( hexChar );
-		}
-
-		return hexBytes.toList( "" );
-	}
-
-	private any function _getEmailServiceProviderService() {
-		return _emailServiceProviderService;
-	}
-	private void function _setEmailServiceProviderService( required any emailServiceProviderService ) {
-		_emailServiceProviderService = arguments.emailServiceProviderService;
-	}
-
+// GETTERS AND SETTERS
 	private any function _getEmailLoggingService() {
 		return _emailLoggingService;
 	}
 	private void function _setEmailLoggingService( required any emailLoggingService ) {
 		_emailLoggingService = arguments.emailLoggingService;
+	}
+
+	private void function _setupErrorCodes() {
+		_errorCodes = {};
+		_errorCodes.recipient = {
+			  "user unknown"     = "Email address doesn't exist, double check it for typos!"
+			, "mailbox inactive" = "Account has been inactive for too long (likely that it doesn't exist anymore)."
+			, "quota exceeded"   = "Even though this is a non-permanent error, most of the time when accounts are over-quota, it means they are inactive."
+			, "blacklisted"      = "You tried to send to a blacklisted recipient for this account."
+			, "spam reporter"    = "You tried to send to a recipient that has reported a previous message from this account as spam."
+		};
+		_errorCodes.domain = {
+			  "invalid domain"      = "There's a typo in the domain name part of the address. Or the address is so old that its domain has expired!"
+			, "no mail host"        = "Nobody answers when we knock at the door."
+			, "relay/access denied" = "The destination mail server is refusing to talk to us."
+			, "greylisted"          = "This is a temporary error due to possible unrecognised senders. Delivery will be re-attempted."
+			, "typofix"             = "The domain part of your recipient email address was not valid."
+		};
+		_errorCodes.content = {
+			  "bad or empty template"      = "You should check that the template you are using has a content or is not corrupted."
+			, "error in template language" = "Your content contain a template language error , you can refer to the error reporting functionalities to get more information."
+		};
+		_errorCodes.spam = {
+			  "sender blocked"  = "This is quite bad! You should contact us to investigate this issue."
+			, "content blocked" = "Something in your email has triggered an anti-spam filter and your email was rejected. Please contact us so we can review the email content and report any false positives."
+			, "policy issue"    = "We do our best to avoid these errors with outbound throttling and following best practices. Although we do receive alerts when this happens, make sure to contact us for further information and a workaround"
+		};
+		_errorCodes.system = {
+			  "system issue"     = "Something went wrong on our server-side. A temporary error. Please contact us if you receive an event of this type."
+			, "protocol issue"   = "Something went wrong with our servers. This should not happen, and never be permanent !"
+			, "connection issue" = "Something went wrong with our servers. This should not happen, and never be permanent !"
+		};
+		_errorCodes.mailjet = {
+			  "preblocked"            = "You tried to send an email to an address that recently (or repeatedly) bounced. We didn't try to send it to avoid damaging your reputation."
+			, "duplicate in campaign" = "You used X-Mailjet-DeduplicateCampaign and sent more than one email to a single recipient. Only the first email was sent; the others were blocked."
+		};
+	}
+	private struct function _getErrorCodes() {
+		return _errorCodes;
 	}
 }

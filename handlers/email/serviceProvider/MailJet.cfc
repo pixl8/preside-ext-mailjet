@@ -1,32 +1,28 @@
 /**
- * Service provider for email sending through mailjet API
+ * Service provider for email sending through Mailjet SMTP
  *
  */
 component {
-	property name="mailjetApiService" inject="mailjetApiService";
 	property name="emailTemplateService" inject="emailTemplateService";
 
 	private boolean function send( struct sendArgs={}, struct settings={} ) {
 		var template = emailTemplateService.getTemplate( sendArgs.template ?: "" );
 
 		sendArgs.params = sendArgs.params ?: {};
-		sendArgs.params[ "X-mailjet-Variables" ] = {
-			  name  = "X-mailjet-Variables"
-			, value =  SerializeJson( { presideMessageId = sendArgs.messageId ?: "" } )
+		sendArgs.params[ "X-MJ-CustomID" ] = {
+			  name  = "X-MJ-CustomID"
+			, value =  sendArgs.messageId ?: ""
 		};
 
-		if ( IsTrue( settings.mailjet_test_mode ?: "" ) ) {
-			sendArgs.params[ "X-mailjet-Drop-Message" ] = {
-				  name  = "X-mailjet-Drop-Message"
-				, value =  "yes"
-			};
-		}
 		if ( Len( Trim( template.name ?: "" ) ) ) {
-			sendArgs.params[ "X-mailjet-Tag" ] = {
-				  name  = "X-mailjet-Tag"
+			sendArgs.params[ "X-Mailjet-Campaign" ] = {
+				  name  = "X-Mailjet-Campaign"
 				, value =  template.name
 			};
 		}
+
+		settings.username = settings.mailjet_api_key    ?: "";
+		settings.password = settings.mailjet_secret_key ?: "";
 
 		var result = runEvent(
 			  event          = "email.serviceProvider.smtp.send"

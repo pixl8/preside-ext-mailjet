@@ -1,5 +1,5 @@
 {
-    "name":"PresideCMS Extension: MailJet",
+    "name":"PresideCMS Extension: Mailjet",
     "type":"preside-extensions",
     "version":"1.0.10",
     "location":"https://github.com/pixl8/preside-ext-mailjet/archive/v1.0.10.zip",
@@ -21,11 +21,5 @@
         ".twgit_features_subject",
         "*.sh",
         "docs"
-    ],
-    "devDependencies":{
-        "testbox":"2.2.0"
-    },
-    "installPaths":{
-        "testbox":"tests/testbox"
-    }
+    ]
 }
