@@ -9,11 +9,7 @@ component {
 	 * @emailLoggingService.inject emailLoggingService
 	 *
 	 */
-	public any function init(
-		  required any emailServiceProviderService
-		, required any emailLoggingService
-	) {
-		_setEmailServiceProviderService( arguments.emailServiceProviderService );
+	public any function init( required any emailLoggingService ) {
 		_setEmailLoggingService( arguments.emailLoggingService );
 		_setupErrorCodes();
 
