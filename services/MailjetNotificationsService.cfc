@@ -83,7 +83,7 @@ component {
 
 		return {
 			  code        = "#relatedTo#.#error.reReplace( '\W', '', 'all' )#"
-			, description = codes[ relatedTo ][ error ] ?: "unknown";
+			, description = codes[ relatedTo ][ error ] ?: "unknown"
 		};
 	}
 
