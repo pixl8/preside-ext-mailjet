@@ -4,8 +4,10 @@ component {
 
 	public void function index( event, rc, prc ) {
 		try {
+			var events = DeSerializeJson( request.http.body ?: "" );
+
 			mailjetNotificationsService.processEvents(
-				events = DeSerializeJson( request.http.body ?: "" )
+				events = ( IsArray( events ) ? events : [ events ] )
 			);
 		} catch ( any e ) {
 			logError( e );
