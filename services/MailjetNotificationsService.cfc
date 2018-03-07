@@ -68,7 +68,6 @@ component {
 				loggingService.recordClick( id=messageId, link=arguments.event.url ?: "" );
 			break;
 		}
-		return true;
 	}
 
 // PRIVATE HELPERS
