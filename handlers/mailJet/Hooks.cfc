@@ -4,7 +4,7 @@ component {
 
 	public void function index( event, rc, prc ) {
 		try {
-			var events = DeSerializeJson( request.http.body ?: "" );
+			var events = DeSerializeJson( event.getHTTPContent() );
 
 			mailjetNotificationsService.processEvents(
 				events = ( IsArray( events ) ? events : [ events ] )
