@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form i18nBaseUri="email.serviceProvider.mailjetSecondary:">
+    <tab id="default">
+        <fieldset id="default">
+			<field name="server"             control="textinput" required="false" default="in-v3.mailjet.com" />
+			<field name="port"               control="select"    required="false" default="587" values="25,587" />
+            <field name="mailjet_api_key"    control="textinput" required="false" />
+            <field name="mailjet_secret_key" control="password"  required="false" outputSavedValue="true" />
+        </fieldset>
+    </tab>
+</form>
