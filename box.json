@@ -1,9 +1,9 @@
 {
     "name":"PresideCMS Extension: Mailjet",
     "type":"preside-extensions",
-    "version":"1.0.5",
-    "location":"https://github.com/pixl8/preside-ext-mailjet/archive/v1.0.5.zip",
-    "author":"Pixl8 Interactive",
+    "version":"$VERSION_NUMBER",
+    "location":"$DOWNLOAD_URL",
+    "author":"Pixl8 Group",
     "directory":"application/extensions",
     "homepage":"https://github.com/pixl8/preside-ext-mailjet",
     "documentation":"https://github.com/pixl8/preside-ext-mailjet/wiki",
@@ -13,13 +13,11 @@
     },
     "bugs":"https://github.com/pixl8/preside-ext-mailjet/issues",
     "slug":"preside-ext-mailjet",
-    "projectURL":"",
+    "projectURL":"https://github.com/pixl8/preside-ext-mailjet",
     "ignore":[
         ".git/*",
         ".gitignore",
-        ".travis.yml",
-        ".twgit_features_subject",
-        "*.sh",
-        "docs"
+        ".github/*",
+        ".twgit_features_subject"
     ]
 }

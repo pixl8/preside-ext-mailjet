@@ -1,7 +1,5 @@
 # Mailjet Integration for Preside
 
-[![Build Status](https://travis-ci.org/pixl8/preside-ext-mailjet.svg?branch=stable)](https://travis-ci.org/pixl8/preside-ext-mailjet)
-
 ## Overview
 
 This extension provides integration for [Mailjet](https://www.mailjet.com/) with Preside's email centre (Preside 10.8 and above).
